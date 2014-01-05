@@ -1,25 +1,13 @@
-define(['threejs', 'Leap', 'use!TrackballControls'], function() {
+define(['proj/Building', 'proj/District', 'core/utils/Mapper', 'threejs', 'Leap', 'use!TrackballControls'], function(Building, District, Mapper) {
 	var ThreeController = function(container, options) {
 		options = options || {};
 		var self = this;
 		var callback = options.callbacks.onRender;
-        var selection;
-        var selected;
-        var t;
-        var isGrabbing = false;
-        var isOffscreen = true;
-
-		function map(value, inputMin, inputMax, outputMin, outputMax) {
-			outVal = ((value - inputMin) / (inputMax - inputMin) * (outputMax - outputMin) + outputMin);
-			if (outVal > outputMax) {
-				outVal = outputMax;
-			}
-			if (outVal < outputMin) {
-				outVal = outputMin;
-			}
-			return outVal;
-		}
-
+		var selection;
+		var selected;
+		var t;
+		var isGrabbing = false;
+		var isOffscreen = true;
 
 		// Scene
 		var scene = new THREE.Scene();
@@ -79,7 +67,7 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 		// Ground plane
 		material = new THREE.MeshBasicMaterial({
 			color: 0xffffff,
-            wireframe: true
+			wireframe: true
 		});
 
 		geometry = new THREE.CubeGeometry(2300, 10, 2300);
@@ -87,57 +75,12 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 		mesh.position.set(0, - 10, 0);
 		scene.add(mesh);
 
-		// Buildings
-        var createBuilding = function(color) {
-			geometry = new THREE.CubeGeometry(1, 1, 1);
-			geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0, 0.5, 0));
-			geometry.faces.splice(3, 1);
-			geometry.faceVertexUvs[0].splice(3, 1);
-			geometry.faceVertexUvs[0][2][0].set(0, 0);
-			geometry.faceVertexUvs[0][2][1].set(0, 0);
-			geometry.faceVertexUvs[0][2][2].set(0, 0);
-			geometry.faceVertexUvs[0][2][3].set(0, 0);
-			//geometry = new THREE.CubeGeometry(set[j].w, set[j].h, set[j].d);
-			material = new THREE.MeshBasicMaterial({
-				wireframe: true,
-				color: color
-			});
-			mesh = new THREE.Mesh(geometry, material);
-			mesh.position.x = Math.floor(Math.random() * 200 - 100) * 10;
-			mesh.position.z = Math.floor(Math.random() * 200 - 100) * 10;
-			mesh.rotation.y = Math.random() * Math.PI * 2;
-			mesh.scale.x = Math.random() * Math.random() * Math.random() * Math.random() * 50 + 10;
-			mesh.scale.z = mesh.scale.x
-			mesh.scale.y = (Math.random() * Math.random() * Math.random() * mesh.scale.x) * 8 + 8;
-			//scene.add(mesh);
-            return mesh;
-        };
+		// District
+		var districtA = new District(1000, 0x0A8559);
+		scene.add(districtA);
 
-        var a = new THREE.Geometry();
-        for (var i = 0, len = 1000; i < len; i++) {
-            THREE.GeometryUtils.merge(a, createBuilding(0x0A8559));
-		};
-        var material  = new THREE.MeshBasicMaterial({
-            color: 0x0A8559,
-            wireframe: true
-        });
-        var mesh = new THREE.Mesh(a, material );
-        scene.add(mesh);
-        a = mesh;
-
-        var b = new THREE.Geometry();
-        for (var i = 0, len = 1000; i < len; i++) {
-            THREE.GeometryUtils.merge(b, createBuilding(0x0B5757));
-		};
-
-        var material  = new THREE.MeshBasicMaterial({
-        color: 0x0B5757,
-        wireframe: true
-        });
-        var mesh = new THREE.Mesh(b, material );
-        scene.add(mesh);
-        b = mesh;
-
+		var districtB = new District(1000, 0x0B5757);
+		scene.add(districtB);
 
 		// Palm		
 		geometry = new THREE.CubeGeometry(100, 20, 80);
@@ -171,16 +114,16 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 				palm.rotation.z = - hand.roll();
 				palm.rotation.set(hand.pitch(), - hand.yaw(), hand.roll());
 				palm.visible = true;
-                isOffscreen = true;
+				isOffscreen = true;
 
-                if (frame.pointables.length === 0) {
+				if (frame.pointables.length === 0) {
 					gesture = '';
-                    isGrabbing = true;
-                }
+					isGrabbing = true;
+				}
 			} else {
 				palm.visible = false;
 				gesture = '';
-                isOffscreen = true;
+				isOffscreen = true;
 			}
 
 			len = frame.pointables.length;
@@ -202,17 +145,17 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 					}
 				}
 
-                if (len === 1 || len === 2) {
+				if (len === 1 || len === 2) {
 					gesture = 'SELECTING DISTRICT A';
-                    selection = a;
+					selection = districtA;
 				} else if (len === 3 || len === 4) {
 					gesture = 'SELECTING DISTRICT B';
-                    selection = b;
+					selection = districtB;
 				} else if (len === 5) {
-                    gesture = 'DESELECTING';
-                    selection = null;
-                }
-                isOffscreen = false;
+					gesture = 'DESELECTING';
+					selection = null;
+				}
+				isOffscreen = false;
 			} else if (palm.hasFingers) {
 				for (i = 0; i < 5; i++) {
 					fingers[i].visible = false;
@@ -222,16 +165,19 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 
 			if (gesture != lastGesture) {
 				lastGesture = gesture;
-                if (selection) {
-                    startTimer(function() {selectBuildings(selection)});
-                    isGrabbing = false;
-                } else {
-                    if (selected) {
-                        startTimer(function() {deselectBuildings(selection)});
-                        isGrabbing = false;
-                    } else {
-                    }
-                }
+				if (selection) {
+					startTimer(function() {
+						selectDistrict(selection);
+					});
+					isGrabbing = false;
+				} else {
+					if (selected) {
+						startTimer(function() {
+							deselectDistrict(selection);
+						});
+						isGrabbing = false;
+					} else {}
+				}
 				if (options.callbacks.onGesture) {
 					options.callbacks.onGesture(gesture);
 				}
@@ -241,74 +187,75 @@ define(['threejs', 'Leap', 'use!TrackballControls'], function() {
 			if (options.callbacks.onRender) {
 				options.callbacks.onRender();
 			}
-            
-            // Camera
-                    if (!active) {
 
-                        startFrame = frame;
-                        active = true;
-                    } else {
-                        var f = startFrame.translation(frame);
+			// Camera
+			if (!active) {
 
-                        // Limit y-axis betwee 0 and 180 degrees
-                        curY = map(f[1], - 300, 300, 0, 179);
+				startFrame = frame;
+				active = true;
+			} else {
+				var f = startFrame.translation(frame);
 
-                        // Assign rotation coordinates
-                        rotateX = f[0];
-                        rotateY = - curY;
+				// Limit y-axis betwee 0 and 180 degrees
+				curY = Mapper.map(f[1], - 300, 300, 0, 179);
 
-                        var zoom = Math.max(0, f[2] + 200);
-                        var zoomFactor = 1 / (1 + (zoom / 150));
-                        // Adjust 3D spherical coordinates of the camera
-                        var newX = camRadius * Math.sin(rotateY * Math.PI / 180) * Math.cos(rotateX * Math.PI / 180);
-                        var newZ = camRadius * Math.sin(rotateY * Math.PI / 180) * Math.sin(rotateX * Math.PI / 180);
-                        var newY = camRadius * Math.cos(rotateY * Math.PI / 180);
+				// Assign rotation coordinates
+				rotateX = f[0];
+				rotateY = - curY;
 
-                        TweenMax.to(camera.position, 1, {
-                            x: newX,
-                            //y: newY,
-                            z: newZ
-                        });
-                        camera.fov = fov * zoomFactor;
-                    }
+				var zoom = Math.max(0, f[2] + 200);
+				var zoomFactor = 1 / (1 + (zoom / 150));
+				// Adjust 3D spherical coordinates of the camera
+				var newX = camRadius * Math.sin(rotateY * Math.PI / 180) * Math.cos(rotateX * Math.PI / 180);
+				var newZ = camRadius * Math.sin(rotateY * Math.PI / 180) * Math.sin(rotateX * Math.PI / 180);
+				var newY = camRadius * Math.cos(rotateY * Math.PI / 180);
 
-                    if (isGrabbing && selected) {
-                        TweenMax.to(selected.position, 1, {
-                            y: palm.position.y
-                        });
-                    } else {
-                        TweenMax.to(a.position, 1, {
-                            y: 0
-                        });
-                        TweenMax.to(b.position, 1, {
-                            y: 0
-                        });
-                    }
+				TweenMax.to(camera.position, 1, {
+					x: newX,
+					//y: newY,
+					z: newZ
+				});
+				camera.fov = fov * zoomFactor;
+			}
+
+			if (isGrabbing && selected) {
+				TweenMax.to(selected.position, 1, {
+					y: palm.position.y
+				});
+			} else {
+				TweenMax.to(districtA.position, 1, {
+					y: 0
+				});
+				TweenMax.to(districtB.position, 1, {
+					y: 0
+				});
+			}
 		});
 
-        var startTimer = function(callback) {
-            clearTimeout(t);
-            t = setTimeout(function() {
-                if (!isGrabbing || !isOffscreen) {
-                    callback();
-                }
-            }, 1000);
-        };
+		var startTimer = function(callback) {
+			clearTimeout(t);
+			t = setTimeout(function() {
+				if (!isGrabbing || ! isOffscreen) {
+					callback();
+				}
+			},
+			1000);
+		};
 
-        var deselectBuildings = function() {
-            a.material.color.setHex(0x0A8559);
-            b.material.color.setHex(0x0B5757);
+		var deselectDistrict = function() {
+			districtA.material.color.setHex(0x0A8559);
+			districtB.material.color.setHex(0x0B5757);
 
-            selected = null;
-        };
+			selected = null;
+		};
 
-        var selectBuildings = function(city) {
-            deselectBuildings();
-            if (city ) {
-                city.material.color.setHex(0xFF5543);
-                selected = city;
-            }
-        };
+		var selectDistrict = function(city) {
+			deselectDistrict();
+			if (city) {
+				city.material.color.setHex(0xFF5543);
+				selected = city;
+			}
+		};
 
 		var animate = function() {
 			requestAnimationFrame(animate);
